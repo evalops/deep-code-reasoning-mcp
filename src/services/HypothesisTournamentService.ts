@@ -11,7 +11,6 @@ import type {
 import { ConversationalGeminiService } from './ConversationalGeminiService.js';
 import { ConversationManager } from './ConversationManager.js';
 import { SecureCodeReader } from '../utils/SecureCodeReader.js';
-import { v4 as uuidv4 } from 'uuid';
 
 interface TournamentConfig {
   maxHypotheses: number;
