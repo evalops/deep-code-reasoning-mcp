@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'node:crypto';
 import { ChatSession } from '@google/generative-ai';
 import { ClaudeCodeContext, DeepAnalysisResult } from '../models/types.js';
 import { SessionError, SessionNotFoundError } from '../errors/index.js';
@@ -50,7 +50,7 @@ export class ConversationManager {
   }
 
   createSession(context: ClaudeCodeContext): string {
-    const sessionId = uuidv4();
+    const sessionId = randomUUID();
     const now = Date.now();
 
     const state: ConversationState = {
@@ -130,7 +130,7 @@ export class ConversationManager {
     }
 
     const turn: ConversationTurn = {
-      id: uuidv4(),
+      id: randomUUID(),
       role,
       content,
       timestamp: Date.now(),
