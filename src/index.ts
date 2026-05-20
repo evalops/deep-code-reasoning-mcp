@@ -813,12 +813,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
 async function main() {
   logger.info('Starting Deep Code Reasoning MCP server...');
-  
+
   const transport = new StdioServerTransport();
   logger.info('Connecting to transport...');
-  
+
   await server.connect(transport);
-  
+
   logger.info('Server connected successfully');
   logger.info(`GEMINI_API_KEY: ${GEMINI_API_KEY ? 'configured' : 'NOT CONFIGURED - server will return errors'}`);
   logger.info('Using Gemini model: gemini-2.5-pro-preview-05-06');
