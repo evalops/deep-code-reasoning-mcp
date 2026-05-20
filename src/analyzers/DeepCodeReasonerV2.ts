@@ -79,7 +79,7 @@ export class DeepCodeReasonerV2 {
           try {
             const content = await this.codeReader.readFile(relatedFile);
             codeFiles.set(relatedFile, content);
-          } catch (error) {
+          } catch {
             // Skip files that can't be read
           }
         }
@@ -185,7 +185,7 @@ export class DeepCodeReasonerV2 {
       try {
         const content = await this.codeReader.readFile(relatedFiles[i]);
         codeFiles.set(relatedFiles[i], content);
-      } catch (error) {
+      } catch {
         // Skip unreadable files
       }
     }
@@ -551,9 +551,9 @@ export class DeepCodeReasonerV2 {
       // Override tournament config if provided
       const tournament = tournamentConfig
         ? new HypothesisTournamentService(
-            this.geminiApiKey,
-            tournamentConfig,
-          )
+          this.geminiApiKey,
+          tournamentConfig,
+        )
         : this.tournamentService;
 
       // Run the tournament

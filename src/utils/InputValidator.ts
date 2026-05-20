@@ -73,7 +73,7 @@ export class InputValidator {
       try {
         const validFinding = this.FindingSchema.parse(finding);
         validatedFindings.push(validFinding);
-      } catch (error) {
+      } catch {
         console.warn('Invalid finding skipped:', finding);
       }
     }
@@ -130,7 +130,7 @@ export class InputValidator {
       try {
         const validated = this.SafeFilename.parse(path);
         validPaths.push(validated);
-      } catch (error) {
+      } catch {
         console.warn(`Invalid file path rejected: ${path}`);
       }
     }

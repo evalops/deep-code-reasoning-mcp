@@ -177,7 +177,7 @@ export class SecureCodeReader {
           if (!stats.isFile()) {
             continue;
           }
-        } catch (error) {
+        } catch {
           // Skip if we can't access the file
           continue;
         }

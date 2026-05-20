@@ -51,13 +51,13 @@ export class HypothesisTournamentService {
     issue: string,
   ): Promise<TournamentResult> {
     const startTime = Date.now();
-    
+
     // Generate initial hypotheses
     const hypotheses = await this.generateHypotheses(context, issue);
-    
+
     const rounds: TournamentRound[] = [];
     let remainingHypotheses = [...hypotheses];
-    let allFindings: Finding[] = [];
+    const allFindings: Finding[] = [];
 
     // Run tournament rounds
     for (let roundNum = 1; roundNum <= this.config.maxRounds && remainingHypotheses.length > 1; roundNum++) {
@@ -68,17 +68,17 @@ export class HypothesisTournamentService {
         issue,
         rounds,
       );
-      
+
       rounds.push(round);
       allFindings.push(...this.extractFindingsFromRound(round));
-      
+
       // Eliminate low-confidence hypotheses
       remainingHypotheses = round.results
         .filter(r => r.overallConfidence >= this.config.eliminationThreshold)
         .sort((a, b) => b.overallConfidence - a.overallConfidence)
         .slice(0, Math.ceil(remainingHypotheses.length / 2))
         .map(r => r.hypothesis);
-      
+
       // Share insights across sessions if enabled
       if (this.config.crossPollinationEnabled && remainingHypotheses.length > 1) {
         await this.crossPollinateInsights(round.results);
@@ -88,7 +88,7 @@ export class HypothesisTournamentService {
     // Determine winner and runner-up
     const finalResults = rounds[rounds.length - 1]?.results || [];
     const sortedResults = finalResults.sort((a, b) => b.overallConfidence - a.overallConfidence);
-    
+
     const winner = sortedResults[0];
     const runnerUp = sortedResults[1];
 
@@ -119,10 +119,10 @@ export class HypothesisTournamentService {
   ): Promise<HypothesisDefinition[]> {
     // Read relevant code files
     const codeFiles = await this.codeReader.readCodeFiles(context.focusArea);
-    
+
     // Use Gemini to generate hypotheses
     const sessionId = this.conversationManager.createSession(context);
-    
+
     const prompt = `Given this issue: "${issue}"
 
 And considering:
@@ -147,10 +147,10 @@ Focus on diverse hypotheses that cover different aspects of the system.`;
 
     // Parse hypotheses from response
     const hypotheses = this.parseHypothesesFromResponse(response);
-    
+
     // Clean up generation session
     this.conversationManager.releaseLock(sessionId);
-    
+
     return hypotheses.slice(0, this.config.maxHypotheses);
   }
 
@@ -164,8 +164,6 @@ Focus on diverse hypotheses that cover different aspects of the system.`;
     issue: string,
     previousRounds: TournamentRound[],
   ): Promise<TournamentRound> {
-    const roundStartTime = Date.now();
-    
     // Create sessions for each hypothesis
     const sessions = hypotheses.map(h => ({
       hypothesis: h,
@@ -180,7 +178,7 @@ Focus on diverse hypotheses that cover different aspects of the system.`;
 
     // Explore hypotheses in parallel (respecting parallelism limit)
     const results: HypothesisExplorationResult[] = [];
-    
+
     for (let i = 0; i < sessions.length; i += this.config.parallelSessions) {
       const batch = sessions.slice(i, i + this.config.parallelSessions);
       const batchResults = await Promise.all(
@@ -237,7 +235,7 @@ Focus on diverse hypotheses that cover different aspects of the system.`;
       );
 
       // Start the exploration
-      const { response: initialResponse, suggestedFollowUps } = 
+      const { response: initialResponse, suggestedFollowUps } =
         await this.conversationalGemini.startConversation(
           sessionId,
           this.conversationManager.getSession(sessionId)!.context,
@@ -247,7 +245,7 @@ Focus on diverse hypotheses that cover different aspects of the system.`;
         );
 
       explorationDepth++;
-      
+
       // Extract initial evidence
       evidence.push(...this.extractEvidenceFromResponse(initialResponse, 'initial'));
       keyInsights.push(...this.extractInsightsFromResponse(initialResponse));
@@ -275,7 +273,7 @@ Focus on finding concrete evidence that either supports or contradicts the hypot
           hypothesis,
           evidence,
         );
-        
+
         explorationDepth++;
         if (reproductionResponse.success) {
           evidence.push({
@@ -314,7 +312,7 @@ Focus on finding concrete evidence that either supports or contradicts the hypot
       };
     } catch (error) {
       console.error(`Error exploring hypothesis ${hypothesis.id}:`, error);
-      
+
       // Return low-confidence result on error
       return {
         hypothesis,
@@ -361,7 +359,7 @@ Please explore this hypothesis by:
         .filter(Boolean);
 
       prompt += `\n\nPreviously eliminated theories:\n${eliminatedTheories.join('\n- ')}`;
-      
+
       const previousInsights = previousRounds.flatMap(r => r.insights);
       if (previousInsights.length > 0) {
         prompt += `\n\nInsights from previous rounds:\n${previousInsights.join('\n- ')}`;
@@ -374,7 +372,7 @@ Please explore this hypothesis by:
   /**
    * Extract evidence from AI response
    */
-  private extractEvidenceFromResponse(response: string, phase: string): Evidence[] {
+  private extractEvidenceFromResponse(response: string, _phase: string): Evidence[] {
     const evidence: Evidence[] = [];
     const timestamp = Date.now();
 
@@ -391,15 +389,15 @@ Please explore this hypothesis by:
     ];
 
     const lines = response.split('\n');
-    
+
     for (const line of lines) {
       const isSupporting = supportingPatterns.some(p => p.test(line));
       const isContradicting = contradictingPatterns.some(p => p.test(line));
-      
+
       if (isSupporting || isContradicting) {
         // Extract code references if present
         const codeRef = line.match(/(\w+\.\w+):(\d+)/);
-        
+
         evidence.push({
           type: isSupporting ? 'supporting' : 'contradicting',
           description: line.trim(),
@@ -418,7 +416,7 @@ Please explore this hypothesis by:
    */
   private extractInsightsFromResponse(response: string): string[] {
     const insights: string[] = [];
-    
+
     // Look for insight patterns
     const insightPatterns = [
       /key finding:|important:|notable:|significant:/i,
@@ -427,7 +425,7 @@ Please explore this hypothesis by:
     ];
 
     const lines = response.split('\n');
-    
+
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       if (insightPatterns.some(p => p.test(line))) {
@@ -467,8 +465,6 @@ Please provide concrete reproduction steps if possible, or explain why reproduct
 
     // Simple check for reproduction success
     const successPatterns = /can be reproduced|reproduction steps:|to reproduce:|reproducible/i;
-    const failurePatterns = /cannot reproduce|unable to reproduce|not reproducible/i;
-
     if (successPatterns.test(response)) {
       // Extract steps
       const steps = response
@@ -489,7 +485,7 @@ Please provide concrete reproduction steps if possible, or explain why reproduct
     if (evidence.length === 0) return 0;
 
     const weights = { supporting: 1, contradicting: -1, neutral: 0 };
-    
+
     const weightedSum = evidence.reduce(
       (sum, e) => sum + (weights[e.type] * e.confidence),
       0,
@@ -515,7 +511,7 @@ Please provide concrete reproduction steps if possible, or explain why reproduct
     if (highConfidenceWords.test(text)) return 0.8 + Math.random() * 0.2;
     if (mediumConfidenceWords.test(text)) return 0.5 + Math.random() * 0.3;
     if (lowConfidenceWords.test(text)) return 0.2 + Math.random() * 0.3;
-    
+
     return 0.5; // Default medium confidence
   }
 
@@ -524,25 +520,25 @@ Please provide concrete reproduction steps if possible, or explain why reproduct
    */
   private parseHypothesesFromResponse(response: string): HypothesisDefinition[] {
     const hypotheses: HypothesisDefinition[] = [];
-    
+
     // Look for numbered hypotheses
     const hypothesisBlocks = response.split(/\d+\.\s+/);
-    
+
     for (let i = 1; i < hypothesisBlocks.length; i++) {
       const block = hypothesisBlocks[i];
-      
+
       // Extract theory (usually first line)
       const lines = block.split('\n').filter(l => l.trim());
       if (lines.length === 0) continue;
-      
+
       const theory = lines[0].replace(/theory:|hypothesis:/i, '').trim();
-      
+
       // Extract other fields
-      const testApproach = this.extractField(block, /approach:|test:|method:/i) || 
+      const testApproach = this.extractField(block, /approach:|test:|method:/i) ||
                           'Investigate through code analysis';
       const category = this.extractCategory(block);
       const priority = this.extractPriority(block);
-      
+
       hypotheses.push({
         id: `h${i}`,
         theory,
@@ -557,7 +553,7 @@ Please provide concrete reproduction steps if possible, or explain why reproduct
       // Fallback parsing logic
       const lines = response.split('\n');
       let currentHypothesis: Partial<HypothesisDefinition> | null = null;
-      
+
       for (const line of lines) {
         if (/hypothesis|theory/i.test(line) && !currentHypothesis) {
           currentHypothesis = {
@@ -596,12 +592,12 @@ Please provide concrete reproduction steps if possible, or explain why reproduct
       const value = parseFloat(match[1] || match[2] || match[3]);
       return value > 1 ? value / 100 : value;
     }
-    
+
     // Estimate from confidence words
     if (/high|likely|probable/i.test(text)) return 0.7 + Math.random() * 0.2;
     if (/medium|possible|moderate/i.test(text)) return 0.4 + Math.random() * 0.2;
     if (/low|unlikely|improbable/i.test(text)) return 0.1 + Math.random() * 0.2;
-    
+
     return 0.5;
   }
 
@@ -613,7 +609,7 @@ Please provide concrete reproduction steps if possible, or explain why reproduct
     const significantInsights = results
       .filter(r => r.overallConfidence > 0.6)
       .flatMap(r => r.keyInsights)
-      .filter(insight => 
+      .filter(insight =>
         /pattern|common|related|connected|affects all|system-wide/i.test(insight),
       );
 
@@ -621,7 +617,7 @@ Please provide concrete reproduction steps if possible, or explain why reproduct
 
     // Share with lower-confidence hypotheses
     const strugglingHypotheses = results.filter(r => r.overallConfidence < 0.5);
-    
+
     for (const result of strugglingHypotheses) {
       try {
         const prompt = `New insights from parallel investigations:
@@ -646,10 +642,10 @@ Do any of these insights change your analysis of the hypothesis "${result.hypoth
   private extractFindingsFromRound(round: TournamentRound): Finding[] {
     return round.results
       .flatMap(r => r.relatedFindings || [])
-      .filter((f, index, self) => 
+      .filter((f, index, self) =>
         // Deduplicate findings
-        index === self.findIndex(other => 
-          other.description === f.description && 
+        index === self.findIndex(other =>
+          other.description === f.description &&
           other.location.file === f.location.file,
         ),
       );
@@ -660,21 +656,21 @@ Do any of these insights change your analysis of the hypothesis "${result.hypoth
    */
   private extractCrossHypothesisInsights(results: HypothesisExplorationResult[]): string[] {
     const insights: string[] = [];
-    
+
     // Find common patterns
     const allInsights = results.flatMap(r => r.keyInsights);
     const insightCounts = new Map<string, number>();
-    
+
     for (const insight of allInsights) {
       // Normalize for comparison
       const normalized = insight.toLowerCase().replace(/[^\w\s]/g, '');
       insightCounts.set(normalized, (insightCounts.get(normalized) || 0) + 1);
     }
-    
+
     // Insights that appear in multiple hypotheses
     for (const [insight, count] of insightCounts) {
       if (count >= 2) {
-        const original = allInsights.find(i => 
+        const original = allInsights.find(i =>
           i.toLowerCase().replace(/[^\w\s]/g, '') === insight,
         );
         if (original) {
@@ -682,18 +678,18 @@ Do any of these insights change your analysis of the hypothesis "${result.hypoth
         }
       }
     }
-    
+
     // Contradictory findings
     const highConfidence = results.filter(r => r.overallConfidence > 0.7);
     const lowConfidence = results.filter(r => r.overallConfidence < 0.3);
-    
+
     if (highConfidence.length > 0 && lowConfidence.length > 0) {
       insights.push(
         `Strong evidence for: ${highConfidence.map(r => r.hypothesis.theory).join(', ')}. ` +
         `Weak evidence for: ${lowConfidence.map(r => r.hypothesis.theory).join(', ')}.`,
       );
     }
-    
+
     return insights;
   }
 

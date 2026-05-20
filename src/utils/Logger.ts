@@ -1,6 +1,6 @@
 /**
  * Logger utility for MCP server
- * 
+ *
  * MCP servers using stdio transport MUST log to stderr (not stdout)
  * because stdout is reserved for MCP protocol communication.
  * This logger provides semantic methods while ensuring correct output stream.
